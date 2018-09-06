@@ -31,8 +31,8 @@
 #pragma once
 
 #include "HoudiniGeoPartObject.h"
-#include "HoudiniAssetParameterChoice.h"
-#include "HoudiniAssetParameterFloat.h"
+#include "Parameters/HoudiniAssetParameterChoice.h"
+#include "Parameters/HoudiniAssetParameterFloat.h"
 
 #include "Components/SceneComponent.h"
 

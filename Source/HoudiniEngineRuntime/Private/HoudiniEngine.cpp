@@ -31,6 +31,7 @@
 #include "HoudiniLandscapeUtils.h"
 #include "HoudiniAsset.h"
 #include "HoudiniRuntimeSettings.h"
+#include "Tasks/HoudiniTaskScheduler.h"
 
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformFilemanager.h"
@@ -502,6 +503,16 @@ FHoudiniEngine::RetrieveTaskInfo( const FGuid HapIGUID, FHoudiniEngineTaskInfo &
     }
 
     return false;
+}
+
+TSharedPtr<FHoudiniTaskScheduler> 
+FHoudiniEngine::GetTaskScheduler()
+{
+    if (TaskScheduler.IsValid())
+        return TaskScheduler;
+
+    TaskScheduler = MakeShareable(new FHoudiniTaskScheduler);
+    return TaskScheduler;
 }
 
 bool 

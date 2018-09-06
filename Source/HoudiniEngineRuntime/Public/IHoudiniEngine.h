@@ -39,7 +39,7 @@ struct FHoudiniEngineTaskInfo;
 struct HAPI_Session;
 struct FHoudiniCookParams;
 class ALandscape;
-
+class FHoudiniTaskScheduler;
 
 class IHoudiniEngine : public IModuleInterface
 {
@@ -84,6 +84,9 @@ public:
 
     /** Retrieve task info. **/
     virtual bool RetrieveTaskInfo(const FGuid HapIGUID, FHoudiniEngineTaskInfo& TaskInfo) = 0;
+
+    /** Retrieve Task Scheduler **/
+    virtual TSharedPtr<FHoudiniTaskScheduler> GetTaskScheduler() = 0;
 
     /** Retrieve HAPI session. **/
     virtual const HAPI_Session* GetSession() const = 0;

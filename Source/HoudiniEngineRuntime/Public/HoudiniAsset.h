@@ -23,13 +23,14 @@
 
 #pragma once
 #include "UObject/Object.h"
+#include "HAPI_Common.h"
+
 #include "HoudiniAsset.generated.h"
 
 
 class UThumbnailInfo;
 class UAssetImportData;
 class UHoudiniAssetComponent;
-
 
 UCLASS( EditInlineNew, config = Engine )
 class HOUDINIENGINERUNTIME_API UHoudiniAsset : public UObject

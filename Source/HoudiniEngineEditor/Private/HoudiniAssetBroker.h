@@ -36,11 +36,10 @@
 class UObject;
 class UActorComponent;
 
-
+/* Assigns a UHoudiniAsset to a UHoudiniAssetComponent */
 class FHoudiniAssetBroker : public IComponentAssetBroker
 {
     public:
-
         virtual ~FHoudiniAssetBroker();
 
     /** IComponentAssetBroker methods. **/
@@ -55,4 +54,3 @@ class FHoudiniAssetBroker : public IComponentAssetBroker
         /** Get the currently assigned asset from the component. **/
         UObject * GetAssetFromComponent( UActorComponent * InComponent ) override;
 };
-

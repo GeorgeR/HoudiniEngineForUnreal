@@ -61,6 +61,7 @@ class HOUDINIENGINERUNTIME_API FHoudiniEngine : public IHoudiniEngine
         virtual void AddTaskInfo( const FGuid HapIGUID, const FHoudiniEngineTaskInfo & TaskInfo ) override;
         virtual void RemoveTaskInfo( const FGuid HapIGUID ) override;
         virtual bool RetrieveTaskInfo( const FGuid HapIGUID, FHoudiniEngineTaskInfo & TaskInfo ) override;
+        virtual TSharedPtr<FHoudiniTaskScheduler> GetTaskScheduler() override;
         virtual HAPI_Result GetHapiState() const override;
         virtual void SetHapiState( HAPI_Result Result ) override;
         virtual const HAPI_Session * GetSession() const override;
@@ -142,4 +143,6 @@ class HOUDINIENGINERUNTIME_API FHoudiniEngine : public IHoudiniEngine
 
         /** Global cooking flag, used to pause HEngine while using the editor **/
         bool EnableCookingGlobal;
+
+        TSharedPtr<FHoudiniTaskScheduler> TaskScheduler;
 };

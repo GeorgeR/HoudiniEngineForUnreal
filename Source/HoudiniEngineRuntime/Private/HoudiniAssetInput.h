@@ -22,7 +22,7 @@
 */
 
 #pragma once
-#include "HoudiniAssetParameter.h"
+#include "Parameters/HoudiniAssetParameter.h"
 #include "CoreMinimal.h"
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"

@@ -24,7 +24,7 @@
 #pragma once
 
 #include "HoudiniGeoPartObject.h"
-#include "HoudiniAssetParameter.h"
+#include "Parameters/HoudiniAssetParameter.h"
 #include "Input/Reply.h"
 #include "Input/Events.h"
 #include "Layout/Geometry.h"

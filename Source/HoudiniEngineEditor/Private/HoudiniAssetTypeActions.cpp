@@ -36,7 +36,7 @@
 #include "HoudiniAssetComponent.h"
 #include "HoudiniEngineEditor.h"
 #include "HoudiniEngine.h"
-#include "SHoudiniToolPalette.h"
+#include "Widgets/SHoudiniToolPalette.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

@@ -20,7 +20,8 @@
 #include "HoudiniAssetActor.h"
 #include "HoudiniAssetComponent.h"
 #include "HoudiniEngineRuntimeTest.h"
-#include "HoudiniAssetParameterInt.h"
+
+#include "Parameters/HoudiniAssetParameterInt.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC( LogHoudiniTests, Log, All );
