@@ -29,6 +29,13 @@ class HOUDINIENGINERUNTIME_API UHoudiniAssetInstance
 {
     GENERATED_BODY()
 
+private:
+    UPROPERTY(EditAnywhere, BlueprintGetter = GetAsset, BlueprintSetter = SetAsset, Category = "Asset", meta = (AllowPrivateAccess))
+    UHoudiniAsset* Asset;
+
+    UPROPERTY(EditAnywhere, BlueprintGetter = GetAssetName, BlueprintSetter = SetAssetName, Category = "Asset", meta = (AllowPrivateAccess))
+    FString AssetName;
+
 public:
     UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Transient, Category = "Asset")
     bool bIsInstantiated;
@@ -37,15 +44,21 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Asset")
     FOnInstantiated OnInstantiated;
 
+    UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Transient, Category = "Asset")
+    bool bIsCooked;
+
     DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCooked);
     UPROPERTY(BlueprintAssignable, Category = "Asset")
     FOnCooked OnCooked;
 
-    UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Asset")
-    UHoudiniAsset* Asset;
+    UFUNCTION(BlueprintGetter, Category = "Asset")
+    UHoudiniAsset* GetAsset() const { return Asset; }
+
+    UFUNCTION(BlueprintSetter, Category = "Asset")
+    void SetAsset(UPARAM(DisplayName = "Asset") UHoudiniAsset* InAsset);
 
     UFUNCTION(BlueprintGetter, Category = "Asset")
-    const FString& GetAssetName() const { return AssetName; }
+    const FORCEINLINE FString& GetAssetName() const { return AssetName; }
 
     UFUNCTION(BlueprintSetter, Category = "Asset")
     void SetAssetName(UPARAM(DisplayName = "AssetName") const FString& InAssetName);
@@ -53,16 +66,22 @@ public:
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Asset")
     const TArray<FString>& GetAssetNames(bool bReload = false);
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Asset")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "HAPI")
     FORCEINLINE int32 GetAssetId() const { return AssetId; }
 
     FORCEINLINE void SetAssetId(HAPI_NodeId AssetId) { this->AssetId = AssetId; }
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Asset")
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "HAPI")
     FORCEINLINE bool IsValidAssetId() const;
+
+    bool GetAssetInfo(HAPI_AssetInfo& AssetInfo);
+
+    bool GetNodeInfo(HAPI_NodeInfo& NodeInfo);
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Parameters")
     const FORCEINLINE TArray<UHoudiniAssetParameter*>& GetParameters() const { return Parameters; }
+
+    // TODO: GetInputs, GetAttributes, GetOutputs
 
     UFUNCTION(BlueprintCallable, Category = "Creation")
     static UHoudiniAssetInstance* Create(UObject* Outer, UPARAM(DisplayName = "Asset") UHoudiniAsset* InAsset, const FString& Name = TEXT(""));
@@ -88,9 +107,6 @@ public:
 private:
     friend struct FHoudiniAssetInstanceData;
 
-    UPROPERTY(EditAnywhere, BlueprintGetter = GetAssetName, BlueprintSetter = SetAssetName, Category = "Asset", meta = (AllowPrivateAccess))
-    FString AssetName;
-
     UPROPERTY()
     FString LastError;
 
@@ -107,9 +123,7 @@ private:
     TMap<HAPI_ParmId, UHoudiniAssetParameter*> ParametersById;
     TMap<FString, UHoudiniAssetParameter*> ParametersByName;
 
-    void Initialize(UHoudiniAsset* Asset, const FString& Name);
-
-    void OnAssetNameSet(const FString& Name);
+    void On_Instantiated();
 
     void Clear(bool bKeepNames = false);
 

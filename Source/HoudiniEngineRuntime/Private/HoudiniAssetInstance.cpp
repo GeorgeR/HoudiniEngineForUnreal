@@ -6,6 +6,7 @@
 #include "HoudiniEngine.h"
 #include "HoudiniEngineUtils.h"
 #include "HoudiniEngineString.h"
+#include "HoudiniParameterFactory.h"
 
 #include "Tasks/HoudiniTaskScheduler.h"
 #include "Tasks/HoudiniAssetTask_Instantiate.h"
@@ -33,11 +34,77 @@ bool FHoudiniAssetInstanceData::AssetNameIsSame(const FString& Other)
     return this->AssetName.Equals(Other, ESearchCase::IgnoreCase);
 }
 
+void UHoudiniAssetInstance::SetAsset(UHoudiniAsset* InAsset)
+{
+    if (InAsset == nullptr)
+    {
+        Clear();
+        Asset = nullptr;
+        return;
+    }
+
+    ensure(InAsset->GetAssetFileName().Len() > 0);
+
+    auto PreviousData = FHoudiniAssetInstanceData(this);
+
+    Clear(false);
+
+    auto bIsNewAsset = !PreviousData.AssetIsSame(Asset);
+    auto bIsNewName = !PreviousData.AssetNameIsSame(AssetName);
+
+    if (bIsNewAsset) this->Asset = Asset;
+
+    if (GetAssetNames(this->AssetLibraryId).Num() > 0)
+        return;
+
+    auto PreviousOrNewAssetName = bIsNewName ? AssetName : PreviousData.AssetName;
+    if (PreviousOrNewAssetName.Len() > 0)
+    {
+        if (auto FoundAsset = AssetNames.FindByPredicate([&](FString& Str) -> bool { return Str.Equals(PreviousOrNewAssetName, ESearchCase::IgnoreCase); }))
+            this->AssetName = *FoundAsset;
+        else
+        {
+            LastError = TEXT("Asset with the name specified was not found in the input Asset.");
+            return;
+        }
+    }
+    else
+        this->AssetName = this->AssetNames[0];
+}
+
 void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
 {
+    if (Asset == nullptr)
+        return;
+
+    ensure(this->AssetNames.Num() == this->HAPIAssetNames.Num());
+
     this->AssetName = InAssetName;
 
-    OnAssetNameSet(InAssetName);
+    Clear(true);
+
+    auto NameIndex = this->AssetNames.IndexOfByKey(this->AssetName);
+    if (NameIndex == INDEX_NONE)
+    {
+        this->AssetName.Empty();
+        LastError = TEXT("Invalid AssetName.");
+        return;
+    }
+
+    auto HAPIAssetName = this->HAPIAssetNames[NameIndex];
+
+    TSharedPtr<FHoudiniAssetTask_Instantiate> InstantiateTask = MakeShareable(new FHoudiniAssetTask_Instantiate(this->Asset, HAPIAssetName));
+    InstantiateTask->OnComplete.AddLambda([&](HAPI_NodeId AssetId) -> void
+    {
+        this->bIsInstantiated = true;
+
+        On_Instantiated();
+        if (this->OnInstantiated.IsBound())
+            OnInstantiated.Broadcast();
+    });
+
+    auto TaskScheduler = FHoudiniEngine::Get().GetTaskScheduler();
+    TaskScheduler->QueueTask(InstantiateTask);
 }
 
 const TArray<FString>& UHoudiniAssetInstance::GetAssetNames(bool bReload)
@@ -69,14 +136,47 @@ FORCEINLINE bool UHoudiniAssetInstance::IsValidAssetId() const
     return FHoudiniEngineUtils::IsHoudiniNodeValid(AssetId);
 }
 
+bool UHoudiniAssetInstance::GetAssetInfo(HAPI_AssetInfo& AssetInfo)
+{
+    auto Result = HAPI_RESULT_SUCCESS;
+
+    Result = FHoudiniApi::GetAssetInfo(FHoudiniEngine::Get().GetSession(), AssetId, &AssetInfo);
+    if (Result != HAPI_RESULT_SUCCESS)
+    {
+        LastError = TEXT("Error getting AssetInfo");
+        return false;
+    }
+
+    return true;
+}
+
+bool UHoudiniAssetInstance::GetNodeInfo(HAPI_NodeInfo& NodeInfo)
+{
+    auto Result = HAPI_RESULT_SUCCESS;
+
+    HAPI_AssetInfo AssetInfo;
+    if (!GetAssetInfo(AssetInfo))
+        return false;
+
+    Result = FHoudiniApi::GetNodeInfo(FHoudiniEngine::Get().GetSession(), AssetInfo.nodeId, &NodeInfo);
+    if (Result != HAPI_RESULT_SUCCESS)
+    {
+        LastError = TEXT("Error getting NodeInfo");
+        return false;
+    }
+
+    return true;
+}
+
 UHoudiniAssetInstance* UHoudiniAssetInstance::Create(UObject* Outer, UHoudiniAsset* Asset, const FString& Name /*= TEXT("")*/)
 {
     ensure(Outer);
     ensure(Asset);
 
     auto Result = NewObject<UHoudiniAssetInstance>(Outer);
-    Result->Initialize(Asset, Name);
-
+    Result->SetAsset(Asset);
+    Result->SetAssetName(Name);
+    
     return Result;
 }
 
@@ -84,7 +184,10 @@ UHoudiniAssetInstance* UHoudiniAssetInstance::Create(UObject* Outer, UHoudiniAss
 bool UHoudiniAssetInstance::IsValid() const
 {
     // TODO: add more validation
-    return this->Asset != nullptr
+    return IsValidLowLevel()
+        && !IsTemplate()
+        && !IsPendingKillOrUnreachable()
+        && this->Asset != nullptr
         && this->AssetName.Len() > 0
         && IsValidAssetId();
 }
@@ -99,7 +202,8 @@ void UHoudiniAssetInstance::PostLoad()
     if (this->Asset == nullptr)
         return;
 
-    Initialize(this->Asset, this->AssetName);
+    SetAsset(Asset);
+    SetAssetName(AssetName);
 }
 
 #if WITH_EDITOR
@@ -109,68 +213,13 @@ void UHoudiniAssetInstance::PostEditChangeChainProperty(struct FPropertyChangedC
 }
 #endif
 
-void UHoudiniAssetInstance::Initialize(UHoudiniAsset* Asset, const FString& Name)
+void UHoudiniAssetInstance::On_Instantiated()
 {
-    ensure(Asset);
-    ensure(Asset->GetAssetFileName().Len() > 0);
+    ensure(IsValidAssetId());
 
-    auto PreviousData = FHoudiniAssetInstanceData(this);
-
-    Clear(false);
-
-    auto bIsNewAsset = !PreviousData.AssetIsSame(Asset);
-    auto bIsNewName = !PreviousData.AssetNameIsSame(Name);
-
-    if (bIsNewAsset) this->Asset = Asset;
-
-    if (GetAssetNames(this->AssetLibraryId).Num() > 0)
-        return;
-
-    auto PreviousOrNewAssetName = bIsNewName ? Name : PreviousData.AssetName;
-    if (PreviousOrNewAssetName.Len() > 0)
-    {
-        if (auto FoundAsset = AssetNames.FindByPredicate([&](FString& Str) -> bool { return Str.Equals(PreviousOrNewAssetName, ESearchCase::IgnoreCase); }))
-            this->AssetName = *FoundAsset;
-        else
-        {
-            LastError = TEXT("Asset with the name specified was not found in the input Asset.");
-            return;
-        }
-    }
-    else
-        this->AssetName = this->AssetNames[0];
-
-    OnAssetNameSet(this->AssetName);
-}
-
-void UHoudiniAssetInstance::OnAssetNameSet(const FString& Name)
-{
-    ensure(Name.Len() > 0);
-    ensure(this->AssetNames.Num() == this->HAPIAssetNames.Num());
-
-    Clear(true);
-
-    auto NameIndex = this->AssetNames.IndexOfByKey(this->AssetName);
-    if (NameIndex == INDEX_NONE)
-    {
-        this->AssetName.Empty();
-        LastError = TEXT("Invalid AssetName.");
-        return;
-    }
-    
-    auto HAPIAssetName = this->HAPIAssetNames[NameIndex];
-
-    TSharedPtr<FHoudiniAssetTask_Instantiate> InstantiateTask = MakeShareable(new FHoudiniAssetTask_Instantiate(this->Asset, HAPIAssetName));
-    InstantiateTask->OnComplete.AddLambda([&](HAPI_NodeId AssetId) -> void
-    {
-        this->bIsInstantiated = true;
-
-        if (this->OnInstantiated.IsBound())
-            OnInstantiated.Broadcast();
-    });
-    
-    auto TaskScheduler = FHoudiniEngine::Get().GetTaskScheduler();
-    TaskScheduler->QueueTask(InstantiateTask);
+    CreateParameters();
+    CreateInputs();
+    CreateAttributes();
 }
 
 void UHoudiniAssetInstance::Clear(bool bKeepNames)
@@ -187,6 +236,75 @@ void UHoudiniAssetInstance::Clear(bool bKeepNames)
 
 bool UHoudiniAssetInstance::CreateParameters()
 {
+    auto Result = HAPI_RESULT_SUCCESS;
+
+    HAPI_AssetInfo AssetInfo;
+    if (!GetAssetInfo(AssetInfo))
+        return false;
+
+    HAPI_NodeInfo NodeInfo;
+    if (!GetNodeInfo(NodeInfo))
+        return false;
+
+    if (NodeInfo.parmCount <= 0)
+        return true;
+
+    TArray<HAPI_ParmInfo> ParameterInfos;
+    ParameterInfos.SetNumUninitialized(NodeInfo.parmCount);
+    Result = FHoudiniApi::GetParameters(FHoudiniEngine::Get().GetSession(), AssetInfo.nodeId, &ParameterInfos[0], 0, NodeInfo.parmCount);
+    if (Result != HAPI_RESULT_SUCCESS) return false;
+    
+    for (auto i = 0; i < NodeInfo.parmCount; ++i)
+    {
+        const auto& ParameterInfo = ParameterInfos[i];
+    
+        if (ParameterInfo.id < 0 || ParameterInfo.childIndex < 0)
+            continue;
+            
+        if(ParameterInfo.invisible)
+            continue;
+    
+        bool bSkipParameter = false;
+        auto ParentId = ParameterInfo.parentId;
+        while (ParentId > 0 && !bSkipParameter)
+        {
+            if (const auto ParentInfoPtr = ParameterInfos.FindByPredicate([=](const auto& Info) {
+                return Info.id == ParentId;
+            }))
+            {
+                if (ParentInfoPtr->invisible && ParentInfoPtr->type == HAPI_PARMTYPE_FOLDER)
+                    bSkipParameter = true;
+    
+                ParentId = ParentInfoPtr->parentId;
+            }
+            else
+                bSkipParameter = true;
+        }
+    
+        if (bSkipParameter)
+            continue;
+    
+        UHoudiniAssetParameter* Parameter = nullptr;
+        FString ParameterName;
+        FHoudiniEngineString(ParameterInfo.nameSH).ToFString(ParameterName);
+        auto FoundParameter = ParametersByName.Find(ParameterName);
+    
+        Parameter = FHoudiniParameterFactory::Create(ParameterInfo.type, this, nullptr, AssetInfo.nodeId, ParameterInfo);
+        check(Parameter);
+    
+        ParametersById.Add(ParameterInfo.id, Parameter);
+    }
+    
+    TMap<FString, UHoudiniAssetParameter*> ParametersByName;
+    ParametersByName.Reserve(ParametersById.Num());
+    for (auto& Pair : ParametersById)
+    {
+        ParametersByName.Add(Pair.Value->GetParameterName(), Pair.Value);
+    
+        if (Pair.Value->HasChildParameters())
+            Pair.Value->NotifyChildParametersCreated();
+    }
+    
     return true;
 }
 
@@ -197,26 +315,5 @@ bool UHoudiniAssetInstance::CreateInputs()
 
 bool UHoudiniAssetInstance::CreateAttributes()
 {
-    return true;
-}
-
-bool UHoudiniAssetInstance::GetAssetAndNodeInfo(const HAPI_NodeId& AssetId, HAPI_AssetInfo& AssetInfo, HAPI_NodeInfo& NodeInfo)
-{
-    auto Result = HAPI_RESULT_SUCCESS;
-
-    Result = FHoudiniApi::GetAssetInfo(FHoudiniEngine::Get().GetSession(), AssetId, &AssetInfo);
-    if (Result != HAPI_RESULT_SUCCESS)
-    {
-        LastError = TEXT("Error getting AssetInfo");
-        return false;
-    }
-
-    Result = FHoudiniApi::GetNodeInfo(FHoudiniEngine::Get().GetSession(), AssetInfo.nodeId, &NodeInfo);
-    if (Result != HAPI_RESULT_SUCCESS)
-    {
-        LastError = TEXT("Error getting NodeInfo");
-        return false;
-    }
-
     return true;
 }

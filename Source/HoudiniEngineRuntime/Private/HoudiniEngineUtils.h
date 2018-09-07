@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include "HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInput.h"
 #include "HoudiniGeoPartObject.h"
 #include "HoudiniCookHandler.h"
 #include "Engine/StaticMesh.h"

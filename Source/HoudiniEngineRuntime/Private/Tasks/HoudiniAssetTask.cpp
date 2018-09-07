@@ -73,6 +73,12 @@ void FHoudiniAssetTask::Invalidate()
     HapiGuid.Invalidate();
 }
 
+void FHoudiniAssetTask::Notify(const FText& Message)
+{
+    if (OnNotify.IsBound())
+        OnNotify.Broadcast(Message);
+}
+
 void FHoudiniAssetTask::Tick()
 {
     if (bStopped == true || !HapiGuid.IsValid())

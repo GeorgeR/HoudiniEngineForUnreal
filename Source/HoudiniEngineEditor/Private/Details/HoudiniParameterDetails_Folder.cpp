@@ -27,8 +27,8 @@
 #include "HoudiniEngineEditorPrivatePCH.h"
 
 #include "HoudiniAssetComponent.h"
-#include "HoudiniAssetInput.h"
-#include "HoudiniAssetInstanceInput.h"
+#include "Parameters/HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInstanceInput.h"
 #include "HoudiniAssetInstanceInputField.h"
 
 #include "Parameters/HoudiniAssetParameterButton.h"

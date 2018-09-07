@@ -22,7 +22,7 @@
 */
 
 #include "HoudiniApi.h"
-#include "HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInput.h"
 #include "HoudiniEngineUtils.h"
 #include "HoudiniSplineComponent.h"
 #include "Parameters/HoudiniAssetParameter.h"

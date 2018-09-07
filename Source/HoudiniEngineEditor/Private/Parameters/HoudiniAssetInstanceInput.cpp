@@ -22,7 +22,7 @@
 */
 
 #include "HoudiniApi.h"
-#include "HoudiniAssetInstanceInput.h"
+#include "Parameters/HoudiniAssetInstanceInput.h"
 #include "HoudiniEngineRuntimePrivatePCH.h"
 #include "HoudiniEngineUtils.h"
 #include "HoudiniAssetComponent.h"

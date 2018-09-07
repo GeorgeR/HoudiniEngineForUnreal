@@ -38,6 +38,9 @@ public:
     DECLARE_MULTICAST_DELEGATE_OneParam(FOnComplete, HAPI_NodeId)
     FOnComplete OnComplete;
 
+    DECLARE_MULTICAST_DELEGATE_OneParam(FOnNotify, const FText)
+    FOnNotify OnNotify;
+
 protected:
     FGuid HapiGuid;
 
@@ -55,6 +58,7 @@ protected:
     bool CheckDependencies();
     void Invalidate();
     
+    void Notify(const FText& Message);
     virtual void BroadcastResult() = 0;
 
     friend class FHoudiniTaskScheduler;

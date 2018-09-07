@@ -33,7 +33,7 @@
 #include "HoudiniSplineComponent.h"
 #include "HoudiniEngineRuntimePrivatePCH.h"
 #include "HoudiniAssetComponent.h"
-#include "HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInput.h"
 #include "HoudiniEngineUtils.h"
 #include "HoudiniEngine.h"
 #include "HoudiniPluginSerializationVersion.h"

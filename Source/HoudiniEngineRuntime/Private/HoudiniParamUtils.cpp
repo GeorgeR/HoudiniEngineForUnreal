@@ -24,9 +24,8 @@
 #include "HoudiniApi.h"
 #include "HoudiniEngineRuntimePrivatePCH.h"
 
-#include "HoudiniAssetInput.h"
-#include "HoudiniAssetInstanceInput.h"
-
+#include "Parameters/HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInstanceInput.h"
 #include "Parameters/HoudiniAssetParameter.h"
 #include "Parameters/HoudiniAssetParameterButton.h"
 #include "Parameters/HoudiniAssetParameterChoice.h"

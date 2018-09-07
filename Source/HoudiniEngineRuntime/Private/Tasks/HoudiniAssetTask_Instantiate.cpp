@@ -41,7 +41,34 @@ void FHoudiniAssetTask_Instantiate::Tick()
     {
         if (FHoudiniEngine::Get().RetrieveTaskInfo(HapiGuid, TaskInfo))
         {
-            auto test = 123;
+            if (TaskInfo.TaskState != EHoudiniEngineTaskState::None)
+                Notify(TaskInfo.StatusText);
+
+            switch (TaskInfo.TaskState)
+            {
+                case EHoudiniEngineTaskState::FinishedInstantiation:
+                {
+                    PostComplete(TaskInfo, false);
+                    break;
+                }
+
+                case EHoudiniEngineTaskState::Aborted:
+                case EHoudiniEngineTaskState::FinishedInstantiationWithErrors:
+                {
+                    PostComplete(TaskInfo, true);
+                    break;
+                }
+
+                case EHoudiniEngineTaskState::Processing:
+                {
+                    Notify(TaskInfo.StatusText);
+                    break;
+                }
+
+                case EHoudiniEngineTaskState::None:
+                default:
+                    break;
+            }
         }
         else
         {

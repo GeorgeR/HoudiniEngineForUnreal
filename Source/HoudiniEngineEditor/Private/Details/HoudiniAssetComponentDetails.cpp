@@ -32,8 +32,9 @@
 #include "HoudiniAssetLogWidget.h"
 #include "HoudiniEngineString.h"
 #include "HoudiniParameterDetails.h"
-#include "HoudiniAssetInput.h"
-#include "HoudiniAssetInstanceInput.h"
+
+#include "Parameters/HoudiniAssetInput.h"
+#include "Parameters/HoudiniAssetInstanceInput.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "ContentBrowserModule.h"
