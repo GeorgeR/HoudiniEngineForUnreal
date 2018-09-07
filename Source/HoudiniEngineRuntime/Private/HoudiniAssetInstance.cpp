@@ -39,7 +39,7 @@ void UHoudiniAssetInstance::SetAsset(UHoudiniAsset* InAsset)
     if (InAsset == nullptr)
     {
         Clear();
-        Asset = nullptr;
+        this->Asset = nullptr;
         return;
     }
 
@@ -49,12 +49,12 @@ void UHoudiniAssetInstance::SetAsset(UHoudiniAsset* InAsset)
 
     Clear(false);
 
-    auto bIsNewAsset = !PreviousData.AssetIsSame(Asset);
+    auto bIsNewAsset = !PreviousData.AssetIsSame(InAsset);
     auto bIsNewName = !PreviousData.AssetNameIsSame(AssetName);
 
-    if (bIsNewAsset) this->Asset = Asset;
+    if (bIsNewAsset) this->Asset = InAsset;
 
-    if (GetAssetNames(this->AssetLibraryId).Num() > 0)
+    if (GetAssetNames(this->AssetLibraryId).Num() <= 0)
         return;
 
     auto PreviousOrNewAssetName = bIsNewName ? AssetName : PreviousData.AssetName;
@@ -70,6 +70,8 @@ void UHoudiniAssetInstance::SetAsset(UHoudiniAsset* InAsset)
     }
     else
         this->AssetName = this->AssetNames[0];
+
+    SetAssetName(this->AssetName);
 }
 
 void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
@@ -77,6 +79,7 @@ void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
     if (Asset == nullptr)
         return;
 
+    ensure(InAssetName.Len() > 0);
     ensure(this->AssetNames.Num() == this->HAPIAssetNames.Num());
 
     this->AssetName = InAssetName;
@@ -96,6 +99,7 @@ void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
     TSharedPtr<FHoudiniAssetTask_Instantiate> InstantiateTask = MakeShareable(new FHoudiniAssetTask_Instantiate(this->Asset, HAPIAssetName));
     InstantiateTask->OnComplete.AddLambda([&](HAPI_NodeId AssetId) -> void
     {
+        SetAssetId(AssetId);
         this->bIsInstantiated = true;
 
         On_Instantiated();
