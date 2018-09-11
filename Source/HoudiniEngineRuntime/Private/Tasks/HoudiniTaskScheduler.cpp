@@ -52,6 +52,9 @@ void FHoudiniTaskScheduler::Tick()
 
 void FHoudiniTaskScheduler::Stop()
 {
+    if (!GEditor)
+        return;
+
     auto TimerManager = GEditor->GetTimerManager();
     TimerManager->ClearTimer(TickHandle);
 }

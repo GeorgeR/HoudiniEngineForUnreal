@@ -30,11 +30,13 @@
 #include "HoudiniEngine.h"
 #include "HoudiniAssetActor.h"
 #include "HoudiniAssetComponent.h"
+#include "HoudiniAssetInstance.h"
 #include "Visualizers/HoudiniHandleComponentVisualizer.h"
 #include "HoudiniHandleComponent.h"
 #include "Visualizers/HoudiniSplineComponentVisualizer.h"
 #include "HoudiniSplineComponent.h"
 #include "Details/HoudiniAssetComponentDetails.h"
+#include "Details/HoudiniAssetInstanceDetails.h"
 #include "Details/HoudiniRuntimeSettingsDetails.h"
 #include "HoudiniAssetTypeActions.h"
 #include "HoudiniAssetBroker.h"
@@ -214,6 +216,10 @@ FHoudiniEngineEditor::RegisterDetails()
     PropertyModule.RegisterCustomClassLayout(
         TEXT( "HoudiniRuntimeSettings" ),
         FOnGetDetailCustomizationInstance::CreateStatic( &FHoudiniRuntimeSettingsDetails::MakeInstance ) );
+
+    PropertyModule.RegisterCustomClassLayout(
+        TEXT("HoudiniAssetInstance"),
+        FOnGetDetailCustomizationInstance::CreateStatic(&FHoudiniAssetInstanceDetails::MakeInstance));
 }
 
 void
@@ -224,8 +230,9 @@ FHoudiniEngineEditor::UnregisterDetails()
         FPropertyEditorModule & PropertyModule =
             FModuleManager::LoadModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
 
-        PropertyModule.UnregisterCustomClassLayout( TEXT( "HoudiniAssetComponent" ) );
-        PropertyModule.UnregisterCustomClassLayout( TEXT( "HoudiniRuntimeSettings" ) );
+        PropertyModule.UnregisterCustomClassLayout(TEXT("HoudiniAssetComponent"));
+        PropertyModule.UnregisterCustomClassLayout(TEXT("HoudiniRuntimeSettings"));
+        PropertyModule.UnregisterCustomClassLayout(TEXT("HoudiniAssetInstance"));
     }
 }
 

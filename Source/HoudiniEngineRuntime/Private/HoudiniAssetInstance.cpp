@@ -1,4 +1,5 @@
 #include "HoudiniApi.h"
+#include "HoudiniEngineRuntimePrivatePCH.h"
 
 #include "HoudiniAssetInstance.h"
 
@@ -45,33 +46,35 @@ void UHoudiniAssetInstance::SetAsset(UHoudiniAsset* InAsset)
 
     ensure(InAsset->GetAssetFileName().Len() > 0);
 
-    auto PreviousData = FHoudiniAssetInstanceData(this);
+    auto PreviousData = GetOrCreatePreviousData();
 
     Clear(false);
 
-    auto bIsNewAsset = !PreviousData.AssetIsSame(InAsset);
-    auto bIsNewName = !PreviousData.AssetNameIsSame(AssetName);
+    auto bIsNewAsset = !PreviousData->AssetIsSame(InAsset);
+    auto bIsNewName = !PreviousData->AssetNameIsSame(AssetName);
 
     if (bIsNewAsset) this->Asset = InAsset;
 
     if (GetAssetNames(this->AssetLibraryId).Num() <= 0)
         return;
 
-    auto PreviousOrNewAssetName = bIsNewName ? AssetName : PreviousData.AssetName;
+    auto PreviousOrNewAssetName = bIsNewName ? AssetName : PreviousData->AssetName;
     if (PreviousOrNewAssetName.Len() > 0)
     {
         if (auto FoundAsset = AssetNames.FindByPredicate([&](FString& Str) -> bool { return Str.Equals(PreviousOrNewAssetName, ESearchCase::IgnoreCase); }))
             this->AssetName = *FoundAsset;
         else
         {
-            LastError = TEXT("Asset with the name specified was not found in the input Asset.");
-            return;
+            //SetLastError(TEXT("Asset with the name specified was not found in the input Asset."));
+            this->AssetName = this->AssetNames[0];
         }
     }
     else
         this->AssetName = this->AssetNames[0];
 
     SetAssetName(this->AssetName);
+
+    ClearPreviousData();
 }
 
 void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
@@ -79,7 +82,9 @@ void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
     if (Asset == nullptr)
         return;
 
-    ensure(InAssetName.Len() > 0);
+    if (InAssetName.IsEmpty())
+        return;
+
     ensure(this->AssetNames.Num() == this->HAPIAssetNames.Num());
 
     this->AssetName = InAssetName;
@@ -90,7 +95,7 @@ void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
     if (NameIndex == INDEX_NONE)
     {
         this->AssetName.Empty();
-        LastError = TEXT("Invalid AssetName.");
+        SetLastError(TEXT("Invalid AssetName."));
         return;
     }
 
@@ -103,8 +108,6 @@ void UHoudiniAssetInstance::SetAssetName(const FString& InAssetName)
         this->bIsInstantiated = true;
 
         On_Instantiated();
-        if (this->OnInstantiated.IsBound())
-            OnInstantiated.Broadcast();
     });
 
     auto TaskScheduler = FHoudiniEngine::Get().GetTaskScheduler();
@@ -119,7 +122,7 @@ const TArray<FString>& UHoudiniAssetInstance::GetAssetNames(bool bReload)
     HAPI_AssetLibraryId LibraryId = -1;
     if (!this->Asset->GetAssetNames(LibraryId, HAPIAssetNames))
     {
-        LastError = TEXT("Input Asset contains no AssetNames (it's empty).");
+        SetLastError(TEXT("Input Asset contains no AssetNames (it's empty)."));
         return this->AssetNames;
     }
 
@@ -147,7 +150,7 @@ bool UHoudiniAssetInstance::GetAssetInfo(HAPI_AssetInfo& AssetInfo)
     Result = FHoudiniApi::GetAssetInfo(FHoudiniEngine::Get().GetSession(), AssetId, &AssetInfo);
     if (Result != HAPI_RESULT_SUCCESS)
     {
-        LastError = TEXT("Error getting AssetInfo");
+        SetLastError(TEXT("Error getting AssetInfo"));
         return false;
     }
 
@@ -211,11 +214,43 @@ void UHoudiniAssetInstance::PostLoad()
 }
 
 #if WITH_EDITOR
+void UHoudiniAssetInstance::PreEditChange(class FEditPropertyChain& PropertyAboutToChange)
+{
+    Super::PreEditChange(PropertyAboutToChange);
+    
+    GetOrCreatePreviousData(true);
+}
+
 void UHoudiniAssetInstance::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+    if (PropertyChangedEvent.GetPropertyName() == TEXT("Asset"))
+        SetAsset(this->Asset);
+    else if (PropertyChangedEvent.GetPropertyName() == TEXT("AssetName"))
+        SetAssetName(this->AssetName);
 }
 #endif
+
+TSharedPtr<FHoudiniAssetInstanceData> UHoudiniAssetInstance::GetOrCreatePreviousData(bool bForceNew /*= false*/)
+{
+    if (!PreviousData.IsValid() || bForceNew)
+        PreviousData = MakeShareable(new FHoudiniAssetInstanceData(this));
+
+    return PreviousData;
+}
+
+void UHoudiniAssetInstance::ClearPreviousData()
+{
+    if (PreviousData.IsValid())
+        PreviousData.Reset();
+}
+
+void UHoudiniAssetInstance::SetLastError(const FString& Message)
+{
+    HOUDINI_LOG_ERROR(TEXT("%s"), *Message);
+    LastError = Message;
+}
 
 void UHoudiniAssetInstance::On_Instantiated()
 {
@@ -224,6 +259,23 @@ void UHoudiniAssetInstance::On_Instantiated()
     CreateParameters();
     CreateInputs();
     CreateAttributes();
+
+    if (this->OnInstantiated.IsBound())
+        OnInstantiated.Broadcast();
+
+    if (this->OnInstantiatedBP.IsBound())
+        OnInstantiatedBP.Broadcast();
+}
+
+void UHoudiniAssetInstance::On_Cooked()
+{
+    ensure(IsValidAssetId());
+
+    if (this->OnCooked.IsBound())
+        OnCooked.Broadcast();
+
+    if (this->OnCookedBP.IsBound())
+        OnCookedBP.Broadcast();
 }
 
 void UHoudiniAssetInstance::Clear(bool bKeepNames)
@@ -258,6 +310,7 @@ bool UHoudiniAssetInstance::CreateParameters()
     Result = FHoudiniApi::GetParameters(FHoudiniEngine::Get().GetSession(), AssetInfo.nodeId, &ParameterInfos[0], 0, NodeInfo.parmCount);
     if (Result != HAPI_RESULT_SUCCESS) return false;
     
+    // TODO: Attempt to remap previous parameters
     for (auto i = 0; i < NodeInfo.parmCount; ++i)
     {
         const auto& ParameterInfo = ParameterInfos[i];
@@ -296,6 +349,7 @@ bool UHoudiniAssetInstance::CreateParameters()
         Parameter = FHoudiniParameterFactory::Create(ParameterInfo.type, this, nullptr, AssetInfo.nodeId, ParameterInfo);
         check(Parameter);
     
+        Parameters.Add(Parameter);
         ParametersById.Add(ParameterInfo.id, Parameter);
     }
     
@@ -318,6 +372,11 @@ bool UHoudiniAssetInstance::CreateInputs()
 }
 
 bool UHoudiniAssetInstance::CreateAttributes()
+{
+    return true;
+}
+
+bool UHoudiniAssetInstance::CreateOutputs()
 {
     return true;
 }

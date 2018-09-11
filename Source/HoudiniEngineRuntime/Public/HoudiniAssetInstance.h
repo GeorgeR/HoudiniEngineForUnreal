@@ -8,6 +8,8 @@
 
 #include "HoudiniAssetInstance.generated.h"
 
+class UHoudiniAssetInput;
+class UHoudiniAssetInstanceInput;
 class UHoudiniAssetParameter;
 
 struct FHoudiniAssetInstanceData
@@ -37,19 +39,25 @@ private:
     FString AssetName;
 
 public:
-    UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Transient, Category = "Asset")
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "Asset")
     bool bIsInstantiated;
 
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInstantiated);
-    UPROPERTY(BlueprintAssignable, Category = "Asset")
-    FOnInstantiated OnInstantiated;
+    DECLARE_MULTICAST_DELEGATE(FOnInstantiated);
+    FOnInstantiated& GetOnInstantiated() { return OnInstantiated; }
 
-    UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Transient, Category = "Asset")
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInstantiatedBP);
+    UPROPERTY(BlueprintAssignable, Category = "Asset", meta = (DisplayName = "OnInstantiated"))
+    FOnInstantiatedBP OnInstantiatedBP;
+
+    UPROPERTY(BlueprintReadOnly, Transient, Category = "Asset")
     bool bIsCooked;
 
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCooked);
-    UPROPERTY(BlueprintAssignable, Category = "Asset")
-    FOnCooked OnCooked;
+    DECLARE_MULTICAST_DELEGATE(FOnCooked);
+    FOnCooked& GetOnCooked() { return OnCooked; }
+
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCookedBP);
+    UPROPERTY(BlueprintAssignable, Category = "Asset", meta = (DisplayName = "OnCooked"))
+    FOnCookedBP OnCookedBP;
 
     UFUNCTION(BlueprintGetter, Category = "Asset")
     UHoudiniAsset* GetAsset() const { return Asset; }
@@ -78,6 +86,12 @@ public:
 
     bool GetNodeInfo(HAPI_NodeInfo& NodeInfo);
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inputs")
+    const FORCEINLINE TArray<UHoudiniAssetInput*>& GetInputs() const { return Inputs; }
+
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inputs")
+    const FORCEINLINE TArray<UHoudiniAssetInstanceInput*>& GetInstanceInputs() const { return InstanceInputs; }
+
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Parameters")
     const FORCEINLINE TArray<UHoudiniAssetParameter*>& GetParameters() const { return Parameters; }
 
@@ -99,6 +113,7 @@ public:
     bool IsValid() const;
 
 #if WITH_EDITOR
+    virtual void PreEditChange(class FEditPropertyChain& PropertyAboutToChange) override;
     virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
@@ -107,8 +122,17 @@ public:
 private:
     friend struct FHoudiniAssetInstanceData;
 
+    FOnInstantiated OnInstantiated;
+    FOnCooked OnCooked;
+
+    TSharedPtr<FHoudiniAssetInstanceData> PreviousData;
+    TSharedPtr<FHoudiniAssetInstanceData> GetOrCreatePreviousData(bool bForceNew = false);
+    void ClearPreviousData();
+
     UPROPERTY()
     FString LastError;
+
+    void SetLastError(const FString& Message);
 
     UPROPERTY()
     TArray<FString> AssetNames;
@@ -117,19 +141,22 @@ private:
     HAPI_AssetLibraryId AssetLibraryId;
     HAPI_NodeId AssetId;
     
-    UPROPERTY()
-    TArray<UHoudiniAssetParameter*> Parameters;
+    TArray<UHoudiniAssetInput*> Inputs;
+    TArray<UHoudiniAssetInstanceInput*> InstanceInputs;
 
+    TArray<UHoudiniAssetParameter*> Parameters;
     TMap<HAPI_ParmId, UHoudiniAssetParameter*> ParametersById;
     TMap<FString, UHoudiniAssetParameter*> ParametersByName;
 
     void On_Instantiated();
+    void On_Cooked();
 
     void Clear(bool bKeepNames = false);
 
     bool CreateParameters();
     bool CreateInputs();
     bool CreateAttributes();
+    bool CreateOutputs();
 
     bool GetAssetAndNodeInfo(const HAPI_NodeId& AssetId, HAPI_AssetInfo& AssetInfo, HAPI_NodeInfo& NodeInfo);
 };
