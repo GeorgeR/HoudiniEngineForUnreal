@@ -127,14 +127,12 @@ UHoudiniAssetParameter* FHoudiniParameterFactory::Create<HAPI_PARMTYPE_NODE>(UOb
         return UHoudiniAssetParameterString::Create(PrimaryObject, nullptr, NodeId, ParameterInfo);
 }
 
-TMap<HAPI_ParmType, FHoudiniParameterFactory::TTerraHoudiniParameterFactory> FHoudiniParameterFactory::Factories;
-
+TMap<HAPI_ParmType, FHoudiniParameterFactory::FHoudiniParameterFactoryFunc> FHoudiniParameterFactory::Factories;
 UHoudiniAssetParameter* FHoudiniParameterFactory::Create(HAPI_ParmType ParameterType, UObject* PrimaryObject, UHoudiniAssetParameter* ParentParameter, HAPI_NodeId NodeId, const HAPI_ParmInfo& ParameterInfo)
 {
     if (Factories.Num() == 0)
     {
         Factories.Add(HAPI_PARMTYPE_STRING, Create<HAPI_PARMTYPE_STRING>);
-
         Factories.Add(HAPI_PARMTYPE_INT, Create<HAPI_PARMTYPE_INT>);
         Factories.Add(HAPI_PARMTYPE_FLOAT, Create<HAPI_PARMTYPE_FLOAT>);
         Factories.Add(HAPI_PARMTYPE_TOGGLE, Create<HAPI_PARMTYPE_TOGGLE>);
@@ -155,4 +153,18 @@ UHoudiniAssetParameter* FHoudiniParameterFactory::Create(HAPI_ParmType Parameter
     ensure(Factory);
 
     return Factory(PrimaryObject, ParentParameter, NodeId, ParameterInfo);
+}
+
+TMap<HAPI_ParmType, FHoudiniParameterFactory::FHoudiniParameterTypeCheckFunc> FHoudiniParameterFactory::TypeCheckers;
+bool FHoudiniParameterFactory::CheckType(HAPI_ParmType ParameterType, UClass* Class)
+{
+    if (TypeCheckers.Num() == 0)
+    {
+        TypeCheckers.Add(HAPI_PARMTYPE_STRING, CheckType<HAPI_PARMTYPE_STRING>);
+    }
+
+    auto TypeChecker = TypeCheckers[ParameterType];
+    ensure(TypeChecker);
+
+    return TypeChecker(Class);
 }

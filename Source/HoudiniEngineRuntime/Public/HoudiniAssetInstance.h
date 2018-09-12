@@ -11,18 +11,26 @@
 class UHoudiniAssetInput;
 class UHoudiniAssetInstanceInput;
 class UHoudiniAssetParameter;
+class UHoudiniOutput;
 
 struct FHoudiniAssetInstanceData
 {
 public:
     UHoudiniAsset * Asset;
     FString AssetName;
-    TMap<HAPI_ParmId, UHoudiniAssetParameter*> Parameters;
+    TArray<UHoudiniAssetParameter*> Parameters;
+    TArray<UHoudiniAssetInput*> Inputs;
+    TArray<UHoudiniAssetInstanceInput*> InstanceInputs;
 
     FHoudiniAssetInstanceData(const UHoudiniAssetInstance* Instance);
 
     bool AssetIsSame(const UHoudiniAsset* Other);
     bool AssetNameIsSame(const FString& Other);
+
+    void GetParametersByName(TMap<FString, UHoudiniAssetParameter*>& ParametersByName);
+
+private:
+    TMap<FString, UHoudiniAssetParameter*> ParametersByName;
 };
 
 UCLASS(BlueprintType)
@@ -41,6 +49,9 @@ private:
 public:
     UPROPERTY(BlueprintReadOnly, Transient, Category = "Asset")
     bool bIsInstantiated;
+
+    DECLARE_MULTICAST_DELEGATE(FOnCleared);
+    FOnCleared& GetOnCleared() { return OnCleared; }
 
     DECLARE_MULTICAST_DELEGATE(FOnInstantiated);
     FOnInstantiated& GetOnInstantiated() { return OnInstantiated; }
@@ -86,14 +97,17 @@ public:
 
     bool GetNodeInfo(HAPI_NodeInfo& NodeInfo);
 
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Parameters")
+    const FORCEINLINE TArray<UHoudiniAssetParameter*>& GetParameters() const { return Parameters; }
+
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inputs")
     const FORCEINLINE TArray<UHoudiniAssetInput*>& GetInputs() const { return Inputs; }
 
     UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inputs")
     const FORCEINLINE TArray<UHoudiniAssetInstanceInput*>& GetInstanceInputs() const { return InstanceInputs; }
 
-    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Parameters")
-    const FORCEINLINE TArray<UHoudiniAssetParameter*>& GetParameters() const { return Parameters; }
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Outputs")
+    const FORCEINLINE TArray<UHoudiniOutput*>& GetOutputs() const { return Outputs; }
 
     // TODO: GetInputs, GetAttributes, GetOutputs
 
@@ -122,9 +136,10 @@ public:
 private:
     friend struct FHoudiniAssetInstanceData;
 
+    FOnCleared OnCleared;
     FOnInstantiated OnInstantiated;
     FOnCooked OnCooked;
-
+    
     TSharedPtr<FHoudiniAssetInstanceData> PreviousData;
     TSharedPtr<FHoudiniAssetInstanceData> GetOrCreatePreviousData(bool bForceNew = false);
     void ClearPreviousData();
@@ -147,6 +162,8 @@ private:
     TArray<UHoudiniAssetParameter*> Parameters;
     TMap<HAPI_ParmId, UHoudiniAssetParameter*> ParametersById;
     TMap<FString, UHoudiniAssetParameter*> ParametersByName;
+
+    TArray<UHoudiniOutput*> Outputs;
 
     void On_Instantiated();
     void On_Cooked();

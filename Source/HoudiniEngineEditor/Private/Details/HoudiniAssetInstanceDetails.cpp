@@ -57,6 +57,7 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailGroup.h"
 #include <SComboBox.h>
+#include "Widgets/Images/SThrobber.h"
 
 #define LOCTEXT_NAMESPACE HOUDINI_LOCTEXT_NAMESPACE 
 
@@ -164,10 +165,42 @@ FHoudiniAssetInstanceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
         ];
 
         CreateAssetWidget(DetailCategoryBuilder);
+
+        FText InstantiatingText = FText::FromString(TEXT("Instantiating Asset..."));
+        DetailCategoryBuilder.AddCustomRow(FText::GetEmpty())
+        [
+            SNew(SBorder)
+            .Padding(8.0f)
+            .Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FHoudiniAssetInstanceDetails::GetIsInstantiatedVisibility)))
+            [
+                SNew(SHorizontalBox)
+                +SHorizontalBox::Slot()
+                .AutoWidth()
+                .VAlign(VAlign_Center)
+                .Padding(FMargin(0,0,8,0))
+                [
+                    SNew(SCircularThrobber)
+                ]
+                +SHorizontalBox::Slot()
+                .VAlign(VAlign_Center)
+                [
+                    SNew(STextBlock)
+                    .Text(InstantiatingText)
+                ]
+            ]
+        ];
     }
 
     //if (!HoudiniAssetInstance->bIsInstantiated)
     //    return;
+
+    // Create Houdini Parameters.
+    {
+        IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory("Parameters", FText::GetEmpty(), ECategoryPriority::Important);
+        for (auto HoudiniAssetParameter : HoudiniAssetInstance->GetParameters())
+            if (HoudiniAssetParameter && !HoudiniAssetParameter->IsChildParameter() && !HoudiniAssetParameter->IsPendingKill())
+                FHoudiniParameterDetails::CreateWidget(DetailCategoryBuilder, HoudiniAssetParameter);
+    }
 
     // Create Houdini Inputs.
     {
@@ -181,16 +214,14 @@ FHoudiniAssetInstanceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuild
     {
         IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory("InstancedInputs", FText::GetEmpty(), ECategoryPriority::Important);
         for (auto InstanceInput : HoudiniAssetInstance->GetInstanceInputs())
-            if (InstanceInput)
-                FHoudiniParameterDetails::CreateWidget(DetailCategoryBuilder, InstanceInput);
+            if (InstanceInput) FHoudiniParameterDetails::CreateWidget(DetailCategoryBuilder, InstanceInput);
     }
 
-    // Create Houdini parameters.
+    // Create Houdini Outputs category.
     {
-        IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory("Parameters", FText::GetEmpty(), ECategoryPriority::Important);
-        for (auto HoudiniAssetParameter : HoudiniAssetInstance->GetParameters())
-            if (HoudiniAssetParameter && !HoudiniAssetParameter->IsChildParameter() && !HoudiniAssetParameter->IsPendingKill())
-                FHoudiniParameterDetails::CreateWidget(DetailCategoryBuilder, HoudiniAssetParameter);
+        IDetailCategoryBuilder& DetailCategoryBuilder = DetailBuilder.EditCategory("Outputs", FText::GetEmpty(), ECategoryPriority::Important);
+        /*for (auto Output : HoudiniAssetInstance->GetOutputs())
+            if (Output) FHoudiniOutputDetails::CreateWidget(DetailCategoryBuilder, Output);*/
     }
 }
 
@@ -567,16 +598,22 @@ FHoudiniAssetInstanceDetails::CreateAssetWidget(IDetailCategoryBuilder& DetailCa
 
 void FHoudiniAssetInstanceDetails::OnInstantiated()
 {
-    HOUDINI_LOG_MESSAGE(TEXT("OnInstantiated"));
+    HOUDINI_LOG_MESSAGE(TEXT("OnInstantiated")); 
 
-    RefreshDetailBuilder();
+    if (HasValidInstance())
+    {
+        RefreshDetailBuilder();
+    }
 }
 
 void FHoudiniAssetInstanceDetails::OnCooked()
 {
     HOUDINI_LOG_MESSAGE(TEXT("OnCooked"));
 
-    RefreshDetailBuilder();
+    if (HasValidInstance())
+    {
+        RefreshDetailBuilder();
+    }
 }
 
 FText FHoudiniAssetInstanceDetails::GetLastErrorText() const
@@ -597,10 +634,12 @@ EVisibility FHoudiniAssetInstanceDetails::GetLastErrorVisibility() const
 
 EVisibility FHoudiniAssetInstanceDetails::GetIsInstantiatedVisibility() const
 {
-    if (!HasValidInstance())
-        return EVisibility::Hidden;
+    if (!HasValidInstance() 
+        || HoudiniAssetInstance->GetAsset() == nullptr
+        || HoudiniAssetInstance->HasError())
+        return EVisibility::Collapsed;
     
-    return HoudiniAssetInstance->bIsInstantiated ? EVisibility::Visible : EVisibility::Collapsed;
+    return HoudiniAssetInstance->bIsInstantiated ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 void FHoudiniAssetInstanceDetails::RefreshDetailBuilder()
