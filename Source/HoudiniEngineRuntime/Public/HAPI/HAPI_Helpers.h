@@ -3,13 +3,6 @@
  * Side Effects Software Inc., and is not to be reproduced,
  * transmitted, or disclosed in any way without written permission.
  *
- * Produced by:
- *      Side Effects Software Inc
- *      123 Front Street West, Suite 1401
- *      Toronto, Ontario
- *      Canada   M5J 2M2
- *      416-504-9876
- *
  * COMMENTS:
  */
 
@@ -199,5 +192,19 @@ HAPI_DECL_RETURN( void )
 
 HAPI_DECL_RETURN( HAPI_TransformEuler )
     HAPI_TransformEuler_Create();
+
+// SESSIONSYNC --------------------------------------------------------------
+
+HAPI_DECL_RETURN (void )
+    HAPI_Viewport_Init( HAPI_Viewport * in );
+
+HAPI_DECL_RETURN( HAPI_Viewport )
+    HAPI_Viewport_Create();
+
+HAPI_DECL_RETURN (void )
+    HAPI_SessionSyncInfo_Init( HAPI_SessionSyncInfo * in );
+
+HAPI_DECL_RETURN( HAPI_SessionSyncInfo )
+    HAPI_SessionSyncInfo_Create();
 
 #endif // __HAPI_HELPERS_h__

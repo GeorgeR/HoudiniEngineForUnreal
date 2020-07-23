@@ -32,9 +32,9 @@
 
 /*
 
-    Houdini Version: 18.0.458
-    Houdini Engine Version: 3.3.5
-    Unreal Version: 4.25.0
+    Houdini Version: 18.0.499
+    Houdini Engine Version: 3.3.11
+    Unreal Version: 4.25.0
 
 */
 
@@ -46,9 +46,9 @@ public class HoudiniEngineEditor : ModuleRules
 {
     private string GetHFSPath()
     {
-        string HoudiniVersion = "18.0.458";
+        string HoudiniVersion = "18.0.499";
         bool bIsRelease = true;
-        string HFSPath = "";
+        string HFSPath = "C:/cygwin/home/prisms/builder-new/Nightly18.0CMake/dev/hfs";
         string RegistryPath = "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Side Effects Software";
 
         if ( !bIsRelease )
