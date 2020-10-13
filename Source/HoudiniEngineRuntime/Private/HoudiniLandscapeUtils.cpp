@@ -55,6 +55,7 @@
     #include "EngineUtils.h"
     #include "LandscapeEditorModule.h"
     #include "LandscapeFileFormatInterface.h"
+    #include "FoliageHelper.h"
 #endif
 
 void
@@ -2966,6 +2967,19 @@ FHoudiniLandscapeUtils::CreateAllLandscapes(
                 FoundLandscape = nullptr;
         }
 
+        // GEORGE EDIT: Just set previous landscape as found
+        if(Landscapes.Num() > 0)
+        {
+            for (auto& KVP : Landscapes)
+            {
+                FoundLandscape = KVP.Value.Get();
+                if (!FoundLandscape || !FoundLandscape->IsValidLowLevel())
+                    FoundLandscape = nullptr;
+                else
+                    break;
+            }
+        }
+
         bool bLandscapeNeedsToBeUpdated = true;
         if (!CurrentHeightfield->bHasGeoChanged)
         {
@@ -3196,6 +3210,68 @@ FHoudiniLandscapeUtils::CreateAllLandscapes(
 
             if (!CurrentLandscape)
                 continue;
+
+            // GEORGE EDIT:
+            if(FoundLandscape)
+            {
+#if WITH_EDITOR
+                auto* Level = FoundLandscape->GetLevel();
+                auto* InstancedFoliageActor = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
+                if(InstancedFoliageActor)
+                {
+                    //TMap<UFoliageType*, TArray<const FFoliageInstance*>> FoliageInstances;
+                    //for(auto& Component : FoundLandscape->GetComponents())
+                    //{
+                    //    const auto BaseId = InstancedFoliageActor->InstanceBaseCache.GetInstanceBaseId(Component);
+                    //    if (BaseId != FFoliageInstanceBaseCache::InvalidBaseId)
+                    //    {
+                    //        for (auto& Pair : InstancedFoliageActor->FoliageInfos)
+                    //        {
+                    //            const FFoliageInfo& Info = *Pair.Value;
+                    //            const auto* InstanceSet = Info.ComponentHash.Find(BaseId);
+                    //            if (InstanceSet)
+                    //            {
+                    //                TArray<const FFoliageInstance*>& Array = FoliageInstances.Add(Pair.Key, TArray<const FFoliageInstance*>());
+                    //                Array.Empty(InstanceSet->Num());
+
+                    //                for (int32 InstanceIndex : *InstanceSet)
+                    //                {
+                    //                    const FFoliageInstance* Instance = &Info.Instances[InstanceIndex];
+                    //                    Array.Add(Instance);
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
+
+                //    for(auto& KVP : FoliageInstances)
+                //    {
+                //        auto* Settings = KVP.Key;
+                //        FFoliageInfo& Info = *InstancedFoliageActor->FindOrAddMesh(Settings);
+                //        for(auto& Instance : KVP.Value)
+                //        {
+                //            Info.AddInstance(InstancedFoliageActor, Settings, *Instance);
+                //        }
+                //    }
+
+                    //InstancedFoliageActor->GetInstancesForComponent();
+                    //FFoliageHelper::SetIsOwnedByFoliage(CurrentLandscape, true);
+                    TArray<UActorComponent*> OldComponents = FoundLandscape->GetComponents().Array();
+                    TArray<UActorComponent*> NewComponents = CurrentLandscape->GetComponents().Array();
+                    for(auto& Component : NewComponents)
+                    {
+                        auto* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
+                        FBox Bounds = PrimitiveComponent->CalcBounds(CurrentLandscape->LandscapeActorToWorld()).GetBox();
+                        for(auto& OldComponent : OldComponents)
+                        {
+                            auto* OldPrimitiveComponent = Cast<UPrimitiveComponent>(OldComponent);
+                            InstancedFoliageActor->MoveInstancesToNewComponent(OldPrimitiveComponent, Bounds, PrimitiveComponent);
+                        }
+                    }
+                }                
+#endif
+                CurrentLandscape->RuntimeVirtualTextures = FoundLandscape->RuntimeVirtualTextures;
+            }
 
             // Update the visibility mask / layer if we have any
             for (auto CurrLayerInfo : ImportLayerInfos)

@@ -9683,7 +9683,9 @@ bool FHoudiniEngineUtils::ModifyUPropertyValueOnObject(
         NumberOfProperties = ArrayProperty->ArrayDim;
 
         // Do we need to add values to the array?
-        FScriptArrayHelper_InContainer ArrayHelper( ArrayProperty, CurrentPropAttribute.GetData() );
+        //FScriptArrayHelper_InContainer ArrayHelper( ArrayProperty, CurrentPropAttribute.GetData() );
+        FScriptArrayHelper_InContainer ArrayHelper(ArrayProperty, StructContainer ? StructContainer : MeshComponent);
+        ArrayHelper.EmptyAndAddValues(NumberOfProperties);
 
         //ArrayHelper.ExpandForIndex( CurrentPropAttribute.AttributeTupleSize - 1 );
         if ( CurrentPropAttribute.AttributeTupleSize > NumberOfProperties )
@@ -9894,6 +9896,22 @@ bool FHoudiniEngineUtils::ModifyUPropertyValueOnObject(
                     if ( CurrentPropAttribute.AttributeTupleSize == 4 )
                         PropertyValue->A = (float)CurrentPropAttribute.GetDoubleValue( nPropIdx + 3 );
                 }
+            }
+        }
+        // if the object is an asset, attempt to load where the houdini attribute is an asset path (string)
+        else if (FObjectProperty* ObjectProperty = CastField< FObjectProperty >(InnerProperty))
+        {
+            UClass* ObjectClass = ObjectProperty->PropertyClass;
+            auto AssetPath = CurrentPropAttribute.GetStringValue(nPropIdx);
+            UObject* Asset = LoadObject<UObject>(MeshComponent, *AssetPath);
+            if (Asset)
+            {
+                //auto* ValuePtr = StructContainer ?
+                //    FoundProperty->ContainerPtrToValuePtr< UObject* >((uint8*)StructContainer, nPropIdx)
+                //    : FoundProperty->ContainerPtrToValuePtr< UObject* >(MeshComponent, nPropIdx);
+                auto ValuePtr = FoundProperty->ContainerPtrToValuePtr<void>(MeshComponent, nPropIdx);
+
+                ObjectProperty->SetObjectPropertyValue(ValuePtr, Asset);
             }
         }
         else

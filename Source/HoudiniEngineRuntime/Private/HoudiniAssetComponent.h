@@ -88,7 +88,7 @@ namespace EHoudiniAssetComponentState
 }
 
 UCLASS( ClassGroup = (Rendering, Common), hidecategories = (Object,Activation,"Components|Activation"),
-    ShowCategories = (Mobility), editinlinenew )
+    ShowCategories = (Mobility, VirtualTexture), editinlinenew )
 class HOUDINIENGINERUNTIME_API UHoudiniAssetComponent : public UPrimitiveComponent, public IHoudiniCookHandler
 {
     friend class AHoudiniAssetActor;
@@ -303,6 +303,8 @@ public:
         // See UHoudiniAssetComponent::PostEditChangeProperty and UHoudiniMeshSplitInstancerComponent::SetInstances
         void CopyComponentPropertiesTo(UPrimitiveComponent * pPrimComp);
 
+        TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const override;
+    
     public:
 
         /** Locate static mesh by geo part object name. By default will use substring matching. **/

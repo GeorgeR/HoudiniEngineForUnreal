@@ -6698,4 +6698,13 @@ UHoudiniAssetComponent::CopyComponentPropertiesTo(UPrimitiveComponent * pPrimCom
     pPrimComp->DetailMode = this->DetailMode;
 }
 
+TArray<URuntimeVirtualTexture*> const& UHoudiniAssetComponent::GetRuntimeVirtualTextures() const
+{
+    if (StaticMeshes.Num() > 0)
+        return RuntimeVirtualTextures;
+
+    static TArray<URuntimeVirtualTexture*> Empty;
+    return Empty;
+}
+
 #undef LOCTEXT_NAMESPACE
